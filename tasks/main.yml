@@ -16,10 +16,8 @@
     when: registry_prefix == ''
 
   - include_tasks: ensure_that_clusterroles_exists.yaml
-    when: create_os_project is defined and create_os_project
-
+  - include_tasks: rbac.yaml
   - include_tasks: create_persistent_volumes.yaml
-
   - import_tasks: create_curator.yaml
   - import_tasks: create_elasticsearch.yaml
   - import_tasks: create_kibana.yaml

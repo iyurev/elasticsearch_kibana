@@ -1,12 +1,8 @@
 ---
 gap_projects: []
 
-project_viewers: []
 
 logs_masters: []
-
-labels: []
-default_router: "yes"
 
 #Nginx secure ES listener variables
 use_basic_auth: no

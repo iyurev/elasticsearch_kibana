@@ -1,0 +1,6 @@
+- name: Create rolebinding for users from list <logs_masters>
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'rolebindings.yaml') }}"
+
+
