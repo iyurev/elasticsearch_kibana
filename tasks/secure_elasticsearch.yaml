@@ -1,0 +1,77 @@
+- name: Check if configmap with basic auth configuration exists
+  k8s_facts:
+     namespace: "{{ project_name }}"
+     name: "{{ nginx_htpasswd_name }}"
+     kind: ConfigMap
+  register: basic_auth_configmap
+
+
+- set_fact:
+    basic_auth_password: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
+  when: basic_auth_configmap.resources | length == 0
+
+
+- block:
+#    - set_fact:
+#        basic_auth_password: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
+#
+#    - debug:
+#        msg: "Password for elasticsearch REST API: {{ basic_auth_password }}"
+
+    - set_fact:
+        password_hash: "{{ basic_auth_password | password_hash('md5') }}"
+
+    - name: Create configmap with basic auth configuration
+      k8s:
+        state: present
+        definition: "{{ lookup('template', 'nginx_basic_auth_configmap.yaml') | from_yaml }}"
+      register: state_basic_auth_configmap
+
+    - name: Update secret with username && password for REST API
+      k8s:
+        state: present
+        definition:
+          kind: Secret
+          metadata:
+            namespace: "{{ project_name }}"
+            name: "{{ basic_auth_secret_name }}"
+          type: Opaque
+          data:
+            username: "{{ basic_auth_username | b64encode  }}"
+            password: "{{ basic_auth_password  | b64encode }}"
+
+  when: basic_auth_configmap.resources | length == 0
+
+
+- name: Configure NGINX reverse proxy
+  k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'secure_es_listener.yaml') | from_yaml_all | list }}"
+
+- block:
+  - name: Get nginx pod
+    k8s_facts:
+        namespace: "{{ project_name }}"
+        kind: Pod
+        label_selectors:
+            - deploymentconfig = {{ nginx_deployment_name }}
+    register: nginx_pod
+
+  - name: Delete nginx pod when configmap with credentials changed
+    k8s:
+      kind: Pod
+      name: "{{ nginx_pod.resources[0].metadata.name }}"
+      namespace: "{{ project_name }}"
+      state: absent
+    when: nginx_pod.resources | length == 1
+  when: state_basic_auth_configmap.changed == true
+
+
+- debug:
+    msg: "Password for elasticsearch REST API: {{ basic_auth_password }}"
+  when: state_basic_auth_configmap.changed == true
+
+- debug:
+    msg: "http://{{ es_dc_name }}.{{ project_name }}.{{ kube_domain }}:{{ es_port }}"
+

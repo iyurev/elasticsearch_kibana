@@ -1,0 +1,11 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+   namespace: {{ project_name }}
+   name: {{ kibana_configmap_name }}
+data:
+  kibana.yml:  |
+    server.name: {{ project_name }}-kibana
+    server.host: "0"
+    elasticsearch.url: http://{{ es_dc_name }}.{{ project_name }}.svc.cluster.local:{{ es_port }}
+    xpack.monitoring.ui.container.elasticsearch.enabled: false

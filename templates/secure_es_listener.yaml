@@ -1,0 +1,180 @@
+---
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  namespace: {{ project_name }}
+  name: {{ nginx_deployment_name }}
+  labels:
+    app: {{ nginx_deployment_name }}
+    name: {{ nginx_deployment_name }}
+spec:
+  replicas: 1
+  triggers:
+    - type: "ConfigChange"
+  selector:
+    deploymentconfig: {{ nginx_deployment_name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: {{ nginx_deployment_name }}
+        deploymentconfig: {{ nginx_deployment_name }}
+    spec:
+      containers:
+        - name: nginx
+          image: {{ nginx_image }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ nginx_http_port_number }}
+              name: {{ nginx_http_port_name }}
+
+            - containerPort: {{ nginx_https_port_number }}
+              name: {{ nginx_https_port_name }}
+
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-pid
+              mountPath: /var/run
+
+            - name: {{ nginx_configmap_name }}
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+
+            - name: {{ nginx_htpasswd_name }}
+              mountPath: /etc/nginx/elasticsearch.passwd
+              subPath: elasticsearch.passwd
+
+
+            - name: {{ nginx_configmap_name }}
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          resources:
+            limits:
+                cpu: {{ nginx_cpu_limit }}
+                memory: {{ nginx_ram_limit }}
+            requests:
+                cpu: {{ nginx_cpu_request }}
+                memory: {{ nginx_ram_request }}
+
+      volumes:
+        - name: {{ nginx_configmap_name }}
+          configMap:
+            name: {{ nginx_configmap_name }}
+
+        - name: {{ nginx_htpasswd_name }}
+          configMap:
+              name: {{ nginx_htpasswd_name }}
+
+        - name: nginx-cache
+          empthyDir: {}
+        - name: nginx-pid
+          empthyDir: {}
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    name: {{ nginx_service_name }}
+  name: {{ nginx_service_name }}
+  namespace: {{ project_name }}
+spec:
+  ports:
+    - name: {{ nginx_http_port_name }}
+      port: 80
+      protocol: TCP
+      targetPort: {{ nginx_http_port_name }}
+
+    - name: {{ nginx_https_port_name }}
+      port: 443
+      protocol: TCP
+      targetPort: {{ nginx_https_port_name }}
+  selector:
+    deploymentconfig:  {{ nginx_deployment_name }}
+  sessionAffinity: None
+  type: ClusterIP
+
+---
+kind: Route
+apiVersion: v1
+metadata:
+  labels:
+    name: {{ nginx_deployment_name }}
+  name: {{ elasticsearch_route_name }}
+  namespace: {{ project_name }}
+spec:
+  host: {{ elasticsearch_route_name }}.{{ project_name }}.{{ router_prefix }}
+  port:
+    targetPort: {{ nginx_http_port_name }}
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+
+  to:
+    kind: Service
+    name: {{ nginx_deployment_name }}
+    weight: 100
+
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: {{ project_name }}
+  name: {{ nginx_configmap_name }}
+data:
+  default.conf: |
+
+    server {
+        listen       {{ nginx_http_port_number }};
+        server_name  localhost;
+       location / {
+       auth_basic "Enter login/password";
+       auth_basic_user_file /etc/nginx/elasticsearch.passwd;
+       proxy_pass    http://{{ es_dc_name }}.{{ project_name }}.{{ kube_domain }}:{{ es_port }};
+       proxy_read_timeout    60;
+       proxy_connect_timeout 60;
+       proxy_set_header      Host $host;
+       proxy_set_header      X-Real-IP $remote_addr;
+       proxy_set_header      X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header      Proxy "";
+       }
+
+        }
+
+
+  nginx.conf: |
+        worker_processes  1;
+
+        error_log  /var/log/nginx/error.log warn;
+        events {
+            worker_connections  1024;
+        }
+        http {
+            include       /etc/nginx/mime.types;
+            default_type  application/octet-stream;
+            log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                              '$status $body_bytes_sent "$http_referer" '
+                              '"$http_user_agent" "$http_x_forwarded_for"';
+            access_log  /var/log/nginx/access.log  main;
+            sendfile        on;
+            #tcp_nopush     on;
+            keepalive_timeout  65;
+            #gzip  on;
+            include /etc/nginx/conf.d/*.conf;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+

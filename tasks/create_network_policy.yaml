@@ -1,0 +1,18 @@
+
+- name: Label RH EFK project
+  k8s:
+    definition:
+       apiVersion: v1
+       kind: Namespace
+       state: present
+       metadata:
+            name: "{{ rh_fluentd_project_name }}"
+            labels:
+              project: "rh-efk"
+
+
+- name: Create (or update ) network policies
+  k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup( 'template', 'network_policy.yaml' ) | from_yaml_all | list }}"

@@ -1,0 +1,42 @@
+---
+kind: "LimitRange"
+apiVersion: "v1"
+metadata:
+ name: "resource-limits"
+ namespace: "{{ project_name }}"
+spec:
+ limits:
+
+ - type: "Container"
+   max:
+    cpu: "{{ container_max_request_cpu }}"
+    memory: "{{ container_max_request_ram }}"
+   min:
+    cpu: "{{ container_min_request_cpu }}"
+    memory: "{{ container_min_request_ram }}"
+
+   default:
+    cpu: "{{ default_container_limit_cpu }}"
+    memory: "{{ default_container_limit_ram }}"
+
+   defaultRequest:
+    cpu: "{{ default_container_request_cpu }}"
+    memory: "{{ default_container_request_ram }}"
+
+---
+kind: "ResourceQuota"
+apiVersion: "v1"
+metadata:
+ name: resource-quota
+ namespace: "{{ project_name }}"
+spec:
+ hard:
+  pods: "{{ pods_count }}"
+  requests.cpu: "{{ cpu_requests }}"
+  requests.memory: "{{ ram_requests }}"
+  limits.cpu: "{{ cpu_limits }}"
+  limits.memory: "{{ ram_limits }}"
+  openshift.io/imagestreams: "{{ image_streams }}"
+
+
+

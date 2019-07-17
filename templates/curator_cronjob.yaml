@@ -1,0 +1,33 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+ name: elasticsearch-curator
+ namespace: "{{ project_name }}"
+spec:
+ schedule: "{{ curator_run_minutes }} {{ curator_run_hour }} * * *"
+ jobTemplate:
+  spec:
+   template:
+    metadata:
+     labels:
+      parent: "cronjobpi"
+    spec:
+     containers:
+     - name: elasticsearch-curator
+       image: "{{ curator_image }}"
+       command: ["curator", "--config", "/curator.yaml", "/actions.yaml"]
+       volumeMounts:
+             - mountPath: /curator.yaml
+               name: curator-config
+               subPath: curator.yaml
+
+             - mountPath: /actions.yaml
+               name: curator-config
+               subPath: actions.yaml
+     volumes:
+          - name: curator-config
+            configMap:
+                  name: curator-configuration
+
+     restartPolicy: OnFailure

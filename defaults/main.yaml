@@ -1,0 +1,97 @@
+---
+gap_projects: []
+
+project_viewers: []
+
+logs_masters: []
+
+labels: []
+default_router: "yes"
+
+#Nginx secure ES listener variables
+use_basic_auth: no
+elasticsearch_route_name: es
+nginx_deployment_name: nginx
+basic_auth_secret_name: elasticsearch-basic-auth-cred
+nginx_http_port_name: http
+nginx_http_port_number: 8080
+
+nginx_https_port_name: https
+nginx_https_port_number: 8443
+nginx_configmap_name: nginx-configuration
+nginx_htpasswd_name: elasticsearch-passwd
+basic_auth_username: es
+nginx_service_name: nginx
+
+kibana_dc_name: kibana
+kibana_proxy_sa: default
+
+router_prefix: foo.com
+kube_domain: svc.cluster.local
+
+es_port: 9200
+es_dc_name: es
+es_sa_name: es
+
+#Curator index rotation
+#Remove ALL indexes older than 7 days
+delete_older_than: 7
+#Run cronjob with curator (time in UTC)
+curator_run_hour: 00
+curator_run_minutes: 30
+
+#####Request + Limits for every deployment in this role
+es_ram_request: 4Gi
+es_ram_limit:   8Gi
+es_cpu_request: 2
+es_cpu_limit: 2
+
+kibana_ram_limit: 1Gi
+kibana_ram_request: 128Mi
+kibana_cpu_limit: 1
+kibana_cpu_request: 256m
+
+nginx_cpu_request: 256m
+nginx_ram_request: 256Mi
+nginx_cpu_limit: 1
+nginx_ram_limit: 1Gi
+######################################################
+
+registry_prefix: ''
+
+es_image_name: elasticsearch/elasticsearch
+es_image_tag: 6.5.4
+
+kibana_image_name: kibana/kibana
+kibana_image_tag: 6.5.4
+
+oauth_proxy_image_name: openshift3/oauth-proxy
+oauth_proxy_image_tag: latest
+
+curator_image_name: curator
+curator_image_tag: latest
+
+nginx_image_name: nginx
+nginx_image_tag: latest
+
+
+kibana_configmap_name: kibana-conf
+#Параметры конфигурации  Fluentd
+rh_fluentd_project_name: openshift-logging
+
+#Storage class
+storage_class_name: super-storage
+#Storage settings
+use_es_pv: yes
+es_pvc_name: es
+es_pvc_size: 50Gi
+
+use_kibana_pv: yes
+kibana_pvc_name: kibana
+kibana_pvc_size: 4Gi
+
+
+#Configure network policies for project with ES
+use_networkpolicy: yes
+
+

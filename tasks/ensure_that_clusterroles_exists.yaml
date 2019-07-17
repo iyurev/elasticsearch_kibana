@@ -1,0 +1,5 @@
+- name: Ensure that dedicated clusterroles exists
+  k8s:
+     state: present
+     definition: "{{ lookup( 'template', 'logs_master_cluster_role.yaml') }}"
+

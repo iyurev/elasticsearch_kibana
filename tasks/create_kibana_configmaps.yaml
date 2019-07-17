@@ -1,0 +1,18 @@
+- debug:
+   msg: "Create ConfigMap's for  Kibana Dashboard"
+#Дефолтный путь к шаблону файла с ConfigMap для Kibana
+- set_fact:
+   os_template_path: "{{ os_templates_directory }}/kibana-configmaps.yaml"
+#Проверяем нет ли кастомного файла с ConfigMap для текущего проекта
+- name: Check if custom ConfigMap exist
+  stat:
+   path: "peer_project_configmaps/kibana/{{ project_name }}.yaml"
+  register: custom_configmap
+#Если файл существует подменяем дефолтное значение
+- set_fact:
+   os_template_path: "peer_project_configmaps/kibana/{{ project_name }}.yaml"
+  when: custom_configmap.stat.exists == true
+#Импортируем таск для создания OpenShift объекта
+- import_tasks: os_template_handler.yaml
+  vars:
+    os_template: "{{ os_template_path }}"

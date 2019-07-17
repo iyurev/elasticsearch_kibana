@@ -1,0 +1,13 @@
+
+- name: Create (or update) curator configurations ( curator.yaml, actions.yaml )
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'curator_configmaps.yaml') }}"
+
+- name: Create curator CronJob
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'curator_cronjob.yaml') }}"
+
+
+

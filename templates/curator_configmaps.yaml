@@ -1,0 +1,46 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: "{{ project_name }}"
+  name: curator-configuration
+data:
+  curator.yaml:  |
+            client:
+              hosts:
+                - "{{ es_dc_name }}.{{ project_name }}.svc.cluster.local:{{ es_port }}"
+              port: {{ es_port }}
+              url_prefix:
+              use_ssl: False
+              certificate:
+              client_cert:
+              client_key:
+              ssl_no_validate: False
+              http_auth:
+              timeout: 30
+              master_only: False
+
+            logging:
+              loglevel: INFO
+              logfile:
+              logformat: default
+              blacklist: ['elasticsearch', 'urllib3']
+  actions.yaml:  |
+        actions:
+          1:
+            action: delete_indices
+            description: "Remove indexes"
+            options:
+               continue_if_exception: False
+               disable_action: False
+            filters:
+             - filtertype: pattern
+               kind: regex
+               value: '^(\.kibana|\.tasks)'
+               exclude: True
+
+             - filtertype: age
+               source: creation_date
+               direction: older
+               unit: days
+               unit_count: {{ delete_older_than }}
+

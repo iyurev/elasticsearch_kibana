@@ -1,0 +1,52 @@
+---
+kind: "ConfigMap"
+apiVersion: v1
+metadata:
+ name: elasticsearch-config
+ namespace: "{{ project_name }}"
+
+binaryData:
+  elasticsearch.keystore: P9dsFxZlbGFzdGljc2VhcmNoLmtleXN0b3JlAAAAAwAAAACbAAAAQMCLZbTzwp2455TH4hZqOsUI3oOYnKa8vJH3Si2GtDCSaEbElu6c5auSqNt91PwM/zcDUzscD+veNsuhULqgkyAAAAAMr2r4r/8S73c50mgzAAAAQ1KPIhONQaEqthlxfOaoaLLwmcNmwtqLmig+DTjAe+oesUkK6oYCvviWdlSy7BPVPirzmkuyEFZ+3z6u9sSUSMcmg23AKJPoAAAAAAAAAACy0YFi
+data:
+  elasticsearch.yml:  |
+      cluster:
+        name: "{{ es_dc_name }}-{{ project_name }}-cluster"
+
+      #path.scripts: /usr/share/elasticsearch/data/scripts
+
+      discovery.type: single-node
+      xpack.security.enabled: false
+      cluster.routing.allocation.disk.threshold_enabled: true
+      cluster.routing.allocation.disk.watermark.low: 96%
+      cluster.routing.allocation.disk.watermark.high : 98%
+      cluster.routing.allocation.disk.watermark.flood_stage: 99%
+
+      node:
+        name: "{{ es_dc_name }}"
+        master: true
+        data: true
+        max_local_storage_nodes: 1
+
+      network:
+        host: 0.0.0.0
+
+  jvm.options:  |
+             -Xmx{{ java_heap_size }}g
+             -Xms{{ java_heap_size }}g
+             -Dlog4j2.disable.jmx=true
+             -Djna.tmpdir=/usr/share/elasticsearch/temp
+             -Djava.io.tmpdir=/usr/share/elasticsearch/temp
+             #-Des.scripting.exception_for_missing_value=true
+
+  log4j2.properties:  |
+
+             status = error
+             appender.console.type = Console
+             appender.console.name = console
+             appender.console.layout.type = PatternLayout
+             appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] %marker%m%n
+
+             rootLogger.level = info
+             rootLogger.appenderRef.console.ref = console
+
+

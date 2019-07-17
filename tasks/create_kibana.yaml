@@ -1,0 +1,32 @@
+- name: Deploy ( or update )  configmaps for Kibana
+  k8s:
+    state: present
+    definition: "{{ lookup( 'template', 'kibana_configmaps.yaml' ) }}"
+  register: kibana_configmap
+
+- block:
+    - name: Get all pods from project
+      k8s_facts:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ project_name }}"
+      register: all_pods
+
+    - name: Killing all kibana pods for apply new configuration
+      k8s:
+        api_version: v1
+        state: absent
+        kind: Pod
+        name: "{{ item.metadata.name }}"
+        namespace: "{{ project_name }}"
+      loop: "{{ all_pods.resources }}"
+      when:  item.metadata.name | regex_search('kibana')   == 'kibana'
+
+  when: kibana_configmap.changed
+
+
+- name: Deploy ( or update ) Kibana dashboard
+  k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup( 'template', 'kibana_deployment.yaml' ) | from_yaml_all | list }}"

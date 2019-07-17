@@ -1,0 +1,49 @@
+{% if logs_aggregation_project is defined %}
+---
+kind: NetworkPolicy
+apiVersion: extensions/v1beta1
+metadata:
+  name: allow-from-{{ logs_aggregation_project }}
+  namespace: "{{ project_name }}"
+spec:
+  podSelector:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: "{{ logs_aggregation_project }}"
+{% endif %}
+
+#Разрешить трафик из проекта с RH EFK
+---
+kind: NetworkPolicy
+apiVersion: extensions/v1beta1
+metadata:
+ name: allow-from-rh-efk-namespace
+ namespace: "{{ project_name }}"
+spec:
+ podSelector:
+ ingress:
+ - from:
+   - namespaceSelector:
+      matchLabels:
+       project: "rh-efk"
+
+{% if gap_projects | length != 0 %}
+{% for project in gap_projects %}
+---
+kind: NetworkPolicy
+apiVersion: extensions/v1beta1
+metadata:
+  name: allow-from-{{ project }}-namespace
+  namespace: "{{ project_name }}"
+spec:
+  podSelector:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+               name: "{{ project }}"
+{% endfor %}
+{% endif %}
+

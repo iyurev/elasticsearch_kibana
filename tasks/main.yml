@@ -1,0 +1,31 @@
+---
+  - set_fact:
+          es_image: "{{ registry_prefix }}/{{ es_image_name }}:{{ es_image_tag }}"
+          kibana_image: "{{ registry_prefix }}/{{ kibana_image_name }}:{{ kibana_image_tag }}"
+          oauth_proxy_image: "{{ registry_prefix }}/{{ oauth_proxy_image_name }}:{{ oauth_proxy_image_tag }}"
+          nginx_image: "{{ registry_prefix }}/{{ nginx_image_name }}:{{ nginx_image_tag }}"
+          curator_image: "{{ registry_prefix }}/{{ curator_image_name }}:{{ curator_image_tag }}"
+    when: registry_prefix != ''
+
+  - set_fact:
+            es_image: "{{ es_image_name }}:{{ es_image_tag }}"
+            kibana_image: "{{ kibana_image_name }}:{{ kibana_image_tag }}"
+            oauth_proxy_image: "{{ oauth_proxy_image_name }}:{{ oauth_proxy_image_tag }}"
+            nginx_image: "{{ nginx_image_name }}:{{ nginx_image_tag }}"
+            curator_image: "{{ curator_image_name }}:{{ curator_image_tag }}"
+    when: registry_prefix == ''
+
+  - include_tasks: ensure_that_clusterroles_exists.yaml
+    when: create_os_project is defined and create_os_project
+
+  - include_tasks: create_persistent_volumes.yaml
+
+  - import_tasks: create_curator.yaml
+  - import_tasks: create_elasticsearch.yaml
+  - import_tasks: create_kibana.yaml
+  - include_tasks: label_default_namespace.yaml
+  - include_tasks: create_network_policy.yaml
+    when: use_networkpolicy
+
+  - include_tasks: secure_elasticsearch.yaml
+    when: use_basic_auth == true

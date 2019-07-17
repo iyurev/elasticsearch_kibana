@@ -1,0 +1,55 @@
+- name: "Check if persistent volume: {{ es_pvc_name }} is exists"
+  k8s_facts:
+      kind: PersistentVolumeClaim
+      namespace: "{{ project_name }}"
+      name: "{{ es_pvc_name }}"
+  register:  es_pvc_name_stat
+
+- name: "Check if persistent volume: {{ kibana_pvc_name }} is exists"
+  k8s_facts:
+    kind: PersistentVolumeClaim
+    namespace: "{{ project_name }}"
+    name: "{{ kibana_pvc_name }}"
+  register:  kibana_pvc_name_stat
+
+
+- name: "Create {{ es_pvc_name }} PVC."
+  k8s:
+    state: present
+    definition:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          namespace: "{{ project_name }}"
+          annotations:
+            volume.beta.kubernetes.io/storage-class: "{{ storage_class_name }}"
+          name: "{{ es_pvc_name }}"
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          volumeMode: Filesystem
+          resources:
+            requests:
+              storage: "{{ es_pvc_size }}"
+  when: (use_es_pv is defined and use_es_pv | bool == true)  and (es_pvc_name_stat.resources | length == 0)
+
+
+- name: "Create {{ kibana_pvc_name }} PVC."
+  k8s:
+    state: present
+    definition:
+      api_version: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        namespace: "{{ project_name }}"
+        annotations:
+          volume.beta.kubernetes.io/storage-class: "{{ storage_class_name }}"
+        name: "{{ kibana_pvc_name }}"
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: "{{ kibana_pvc_size }}"
+  when: (use_kibana_pv is defined and use_kibana_pv | bool == true ) and (kibana_pvc_name_stat.resources | length == 0)

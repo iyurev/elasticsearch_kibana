@@ -1,0 +1,136 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "{{ kibana_proxy_sa }}"
+  namespace: "{{ project_name }}"
+  annotations:
+    serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"{{ kibana_dc_name }}"}}'
+
+---
+kind: "Service"
+apiVersion: v1
+metadata:
+ labels:
+    name: "{{ kibana_dc_name }}"
+    namespace: "{{ project_name }}"
+ name: "{{ kibana_dc_name }}"
+ annotations:
+   service.alpha.openshift.io/serving-cert-secret-name: "{{ kibana_dc_name }}-tls"
+ namespace: "{{ project_name }}"
+spec:
+ ports:
+ - name: dasboard
+   port: 443
+   protocol: TCP
+   targetPort: 8443
+ selector:
+  deploymentconfig: "{{ kibana_dc_name }}"
+ type: ClusterIP
+
+---
+kind: Route
+apiVersion: v1
+metadata:
+ labels:
+  app: "{{ kibana_dc_name }}"
+  name: "{{ kibana_dc_name }}"
+ name: "{{ kibana_dc_name }}"
+ namespace: "{{ project_name }}"
+spec:
+ host: "{{ kibana_dc_name }}-{{ project_name }}.{{ router_prefix }}"
+ to:
+  name: "{{ kibana_dc_name }}"
+ tls:
+  termination: Reencrypt
+  insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: "v1"
+kind: "DeploymentConfig"
+metadata:
+  namespace: "{{ project_name }}"
+  name: "{{ kibana_dc_name }}"
+  labels:
+    provider: openshift
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    provider: openshift
+    deployment: "{{ kibana_dc_name }}"
+  strategy:
+    type: Recreate
+  triggers:
+  - type: "ConfigChange"
+  template:
+    metadata:
+      name: "{{ kibana_dc_name }}"
+      labels:
+        provider: openshift
+        deployment: "{{ kibana_dc_name }}"
+    spec:
+      serviceAccountName: "{{ kibana_proxy_sa }}"
+      containers:
+      - name: "kibana"
+        image: "{{ kibana_image }}"
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: "{{ kibana_cpu_limit }}"
+            memory: "{{ kibana_ram_limit }}"
+          requests:
+            cpu: "{{ kibana_cpu_request }}"
+            memory: "{{ kibana_ram_request }}"
+        ports:
+        - containerPort: 5601
+          name: "dashboard"
+        env:
+         - name: "BABEL_CACHE_PATH"
+           value: "/usr/share/kibana/data/.babelcache.json"
+        volumeMounts:
+              - name: kibana-conf
+                mountPath: /usr/share/kibana/config/kibana.yml
+                subPath: kibana.yml
+
+              - name: kibana-data
+                mountPath:  /usr/share/kibana/data
+
+      - name: oauth-proxy
+        image: "{{ oauth_proxy_image }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8443
+          name: public
+        args:
+        - "--https-address=:8443"
+        - "--provider=openshift"
+        - "--openshift-service-account={{ kibana_proxy_sa }}"
+        - "--upstream=http://localhost:5601"
+        - "--tls-cert=/etc/tls/private/tls.crt"
+        - "--tls-key=/etc/tls/private/tls.key"
+        - "--cookie-secret=SECRET"
+        - '--openshift-sar={"namespace":"{{ project_name }}","resource":"services","name":"{{ kibana_dc_name }}","verb":"get"}'
+
+        volumeMounts:
+         - mountPath: /etc/tls/private
+           name: "{{ kibana_dc_name }}-tls"
+      volumes:
+          - name: kibana-conf
+            configMap:
+               name: kibana-conf
+
+          {% if  use_kibana_pv is defined and use_kibana_pv | bool == true  -%}
+          - name:  kibana-data
+            persistentVolumeClaim:
+                  claimName: {{ kibana_pvc_name }}
+          {%- endif %}
+
+
+          {% if use_kibana_pv is defined and use_kibana_pv | bool == false  -%}
+          - name: kibana-data
+            empthyDir: {}
+          {%- endif %}
+
+          - name: "{{ kibana_dc_name }}-tls"
+            secret:
+               secretName: "{{ kibana_dc_name }}-tls"

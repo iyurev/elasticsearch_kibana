@@ -1,0 +1,129 @@
+---
+apiVersion: v1
+kind: "ServiceAccount"
+metadata:
+      namespace: "{{ project_name }}"
+      name: "{{ es_sa_name }}"
+
+---
+apiVersion: "v1"
+kind: "DeploymentConfig"
+metadata:
+  namespace: "{{ project_name }}"
+  name: "{{ es_dc_name }}"
+  labels:
+    provider: openshift
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    provider: openshift
+    deployment: "{{ es_dc_name }}"
+  strategy:
+    type: Recreate
+  triggers:
+       - type: "ConfigChange"
+  template:
+    metadata:
+      name: "{{ es_dc_name }}"
+      labels:
+        provider: openshift
+        deployment: "{{ es_dc_name }}"
+    spec:
+      serviceAccountName: "{{ es_sa_name }}"
+
+      containers:
+        - name: "elasticsearch"
+          image: "{{ es_image }}"
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: "{{ es_cpu_limit }}"
+              memory: "{{ es_ram_limit }}"
+            requests:
+              cpu: "{{ es_cpu_request }}"
+              memory: "{{ es_ram_request }}"
+
+          ports:
+             - containerPort: 9200
+               name: "restapi"
+
+             - containerPort: 9300
+               name: "cluster"
+          env:
+
+            - name: "HEAP_DUMP_LOCATION"
+              value: "/elasticsearch/persistent/heapdump.hprof"
+
+            - name: "ES_TMPDIR"
+              value: "/usr/share/elasticsearch/temp"
+
+          volumeMounts:
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.keystore
+              subPath: elasticsearch.keystore
+
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+              readOnly: true
+
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/jvm.options
+              subPath: jvm.options
+
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/log4j2.properties
+              subPath: log4j2.properties
+
+            - name: elasticsearch-storage
+              mountPath: /usr/share/elasticsearch/data
+
+            - name: es-temp
+              mountPath: /usr/share/elasticsearch/temp
+
+            - name: sys-tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: elasticsearch-config
+          configMap:
+             name: elasticsearch-config
+
+        {% if use_es_pv is defined and use_es_pv | bool == true  -%}
+        - name:  elasticsearch-storage
+          persistentVolumeClaim:
+                       claimName: {{ es_pvc_name }}
+        {%- endif %}
+
+        {% if use_es_pv is defined and use_es_pv | bool == false  -%}
+        - name: elasticsearch-storage
+          empthyDir: {}
+        {%- endif %}
+
+        - empthyDir: {}
+          name: es-temp
+
+        - empthyDir: {}
+          name: sys-tmp
+---
+kind: "Service"
+apiVersion: v1
+metadata:
+  labels:
+    name: "{{ es_dc_name }}"
+  name: "{{ es_dc_name }}"
+  namespace: "{{ project_name }}"
+spec:
+  ports:
+  - name: restapi
+    port: 9200
+    protocol: TCP
+    targetPort: 9200
+  selector:
+    deploymentconfig: "{{ es_dc_name }}"
+  sessionAffinity: None
+  type: ClusterIP
+
+
+
